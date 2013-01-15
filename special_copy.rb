@@ -1,4 +1,5 @@
-puts "Hello World!"
+require 'fileutils'
+
 
 # Copy all converted video files, but no DVD/BD files
 class SpecialCopy
@@ -16,86 +17,77 @@ class SpecialCopy
 
   private
   def process_dir(dir)
+	puts "====> Processing dir " + dir
 	Dir.foreach(dir) do |x|
 	  next unless (x != "." && x != "..")
 
-	  fp = File.join(dir,x)
-	  print "#{fp}"
-	  if File.directory?(fp)  then
+	  from_file = File.join(dir,x)
+	  print from_file
+	  if File.directory?(from_file)  then
 		puts "\t DIR"
-		process_dir fp
+		process_dir from_file
+		puts "<== DONE with " + from_file
+		next
 	  end
 
-	  next unless (x.match(/.mp4|.jpg|.nfo|.avi|.m4v/))
-
-	  to_file = fp.sub(source_dir,dest_dir)
-	  puts "\t FILE --> "  + to_file.to_s
-
+	  if x.match(/.mp4|.jpg|.nfo|.avi|.m4v/).nil? then
+		puts "\t --> IGNORED"
+		next
 	  end
+
+	  to_file = from_file.sub(source_dir,dest_dir)
+	  puts "\t FILE --> "  + to_file.to_s + " Size: " + File.size(from_file).to_s
+
+	  copy from_file,to_file
 	end
+
+  rescue => e
+	p "Exception caught:" + e.message
+	p e.backtrace.join("\n")
+	p e.inspect
+
   end
 
-class Greeting
-	attr_accessor :names
+  def copy(from_file, to_file)
 
-	# Create the object
-    def initialize(names = "World")
-      @names = names
-    end
+	if File.exist?(to_file) then
+	  to_file_time = File.ctime(to_file)
+	  from_file_time = File.ctime(from_file)
+	  to_file_size = File.size(to_file)
+	  from_file_size = File.size(from_file)
 
-	 # Say hi to everybody
-	 def say_hi
-	   if @names.nil?
-		 puts "..."
-	   elsif @names.respond_to?("each")
+	  puts "FILE EXISTS: #{to_file}, Size #{to_file_size} bytes, Date #{to_file_time}"
+	  puts "OVERWRITE WITH: #{from_file} Size #{from_file_size} bytes, Date #{from_file_time}"
+	  if (to_file_size != from_file_size) then
+		puts "SOURCE AND TARGET FILES ARE DIFFERENT --> OVERWRITING"
+	  else
+		puts "Files are same size --> IGNORED"
+		return
+	  end
+	end
+	to_dir = File.dirname(to_file)
+	FileUtils.mkpath to_dir
+	FileUtils.copy(from_file,to_file, :preserve => true)
 
-		 # @names is a list of some kind, iterate!
-		 @names.each do |name|
-		   puts "Hello #{name}!"
-		 end
-	   else
-		 puts "Hello #{@names}!"
-	   end
-	 end
+  rescue => e
+	p e.message
+	p e.backtrace.join("\n")
+	p e.inspect
 
-	 # Say bye to everybody
-	 def say_bye
-	   if @names.nil?
-		 puts "..."
-	   elsif @names.respond_to?("join")
-		 # Join the list elements with commas
-		 puts "Goodbye #{@names.join(", ")}.  Come back soon!"
-	   else
-		 puts "Goodbye #{@names}.  Come back soon!"
-	   end
-	 end
+
+  end
 
 end
 
-
-g = Greeting.new
-g.say_hi
-g.say_bye
-
-g.names="Alex"
-g.say_hi
-g.say_bye
-
-# Change the name to an array of names
-g.names = ["Albert", "Brenda", "Charles",
-			"Dave", "Englebert"]
-g.say_hi
-g.say_bye
 ################## VIDEO COPY ################
 begin
 	puts "#{ARGV.length} args: " + ARGV.to_s
-	exit false unless ARGV.length == 2
+	if ARGV.length != 2 then
+	  puts "Usage: special_copy from_dir to_dir"
+	  exit false
+	end
 
-	vc = SpecialCopy.new(ARGV[0],ARGV[1])
-  	vc.process
-
-
-#rescue SystemExit
-#	puts "Systen Exit: "
+	sc = SpecialCopy.new(ARGV[0],ARGV[1])
+  	sc.process
 
 end
